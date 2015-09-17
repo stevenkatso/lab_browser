@@ -1,4 +1,5 @@
 import java.awt.Dimension;
+
 import java.net.URL;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -23,6 +24,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
+import resources.BrowserException;
+
 import javax.imageio.ImageIO;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -61,6 +64,7 @@ public class BrowserView {
     private Button myBackButton;
     private Button myNextButton;
     private Button myHomeButton;
+    private Button myAddFavorites;
     // favorites
     private ComboBox<String> myFavorites;
     // get strings from resource file
@@ -70,8 +74,9 @@ public class BrowserView {
 
     /**
      * Create a view of the given model of a web browser.
+     * @throws BrowserException 
      */
-    public BrowserView (BrowserModel model, String language) {
+    public BrowserView (BrowserModel model, String language) throws BrowserException {
         myModel = model;
         // use resources for labels
         myResources = ResourceBundle.getBundle(DEFAULT_RESOURCE_PACKAGE + language);
@@ -84,13 +89,14 @@ public class BrowserView {
         enableButtons();
         // create scene to hold UI
         myScene = new Scene(root, DEFAULT_SIZE.width, DEFAULT_SIZE.height);
-        //myScene.getStylesheets().add(DEFAULT_RESOURCE_PACKAGE + STYLESHEET);
+        myScene.getStylesheets().add(DEFAULT_RESOURCE_PACKAGE + STYLESHEET);
     }
 
     /**
      * Display given URL.
+     * @throws BrowserException 
      */
-    public void showPage (String url) {
+    public void showPage (String url) throws BrowserException {
         URL valid = myModel.go(url);
         if (url != null) {
             update(valid);
@@ -125,22 +131,22 @@ public class BrowserView {
     }
 
     // move to the next URL in the history
-    private void next () {
+    private void next () throws BrowserException {
         update(myModel.next());
     }
 
     // move to the previous URL in the history
-    private void back () {
+    private void back () throws BrowserException {
         update(myModel.back());
     }
 
     // change current URL to the home page, if set
-    private void home () {
+    private void home () throws BrowserException {
         showPage(myModel.getHome().toString());
     }
 
     // change page to favorite choice
-    private void showFavorite (String favorite) {
+    private void showFavorite (String favorite) throws BrowserException {
         showPage(myModel.getFavorite(favorite).toString());
     }
 
@@ -169,6 +175,7 @@ public class BrowserView {
         myBackButton.setDisable(! myModel.hasPrevious());
         myNextButton.setDisable(! myModel.hasNext());
         myHomeButton.setDisable(myModel.getHome() == null);
+        myAddFavorites.setDisable(false);
     }
 
     // convenience method to create HTML page display
@@ -180,7 +187,7 @@ public class BrowserView {
     }
 
     // organize user's options for controlling/giving input to model
-    private Node makeInputPanel () {
+    private Node makeInputPanel () throws BrowserException {
         VBox result = new VBox();
         result.getChildren().addAll(makeNavigationPanel(), makePreferencesPanel());
         return result;
@@ -194,22 +201,32 @@ public class BrowserView {
     }
 
     // make user-entered URL/text field and back/next buttons
-    private Node makeNavigationPanel () {
+    private Node makeNavigationPanel () throws BrowserException {
         HBox result = new HBox();
         // create buttons, with their associated actions
         // old style way to do set up callback (anonymous class)
         myBackButton = makeButton("BackCommand", new EventHandler<ActionEvent>() {
             @Override      
             public void handle (ActionEvent event) {       
-                back();        
+                try {
+					back();
+				} catch (BrowserException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}        
             }      
         });
         result.getChildren().add(myBackButton);
         // new style way to do set up callback (lambdas)
-        myNextButton = makeButton("NextCommand", event -> next());
+        myNextButton = makeButton("NextCommand", event -> {try{next();}catch(BrowserException ex){}});
         result.getChildren().add(myNextButton);
-        myHomeButton = makeButton("HomeCommand", event -> home());
+        myHomeButton = makeButton("HomeCommand", event -> {try{home();}catch(BrowserException ex){}});
         result.getChildren().add(myHomeButton);
+        myAddFavorites = makeButton("AddFavoriteCommand", event -> addFavorite());
+        result.getChildren().add(myAddFavorites);
+        myFavorites = new ComboBox<String>();
+        myFavorites.setPromptText("Favorites");
+        result.getChildren().add(myFavorites);
         // if user presses button or enter in text field, load/show the URL
         EventHandler<ActionEvent> showHandler = new ShowPage();
         result.getChildren().add(makeButton("GoCommand", showHandler));
@@ -259,7 +276,12 @@ public class BrowserView {
     private class ShowPage implements EventHandler<ActionEvent> {
         @Override      
         public void handle (ActionEvent event) {       
-            showPage(myURLDisplay.getText());      
+            try {
+				showPage(myURLDisplay.getText());
+			} catch (BrowserException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}      
         }      
     }
 
@@ -279,7 +301,12 @@ public class BrowserView {
                     if (href != null) {
                         String domEventType = event.getType();
                         if (domEventType.equals(EVENT_CLICK)) {
-                            showPage(href);
+                            try {
+								showPage(href);
+							} catch (BrowserException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
                         } else if (domEventType.equals(EVENT_MOUSEOVER)) {
                             showStatus(href);
                         } else if (domEventType.equals(EVENT_MOUSEOUT)) {
